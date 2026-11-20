@@ -322,3 +322,13 @@
 - [ ] Wiki Sync run #251 (`44653227178`) の完了確認。
 - 実機 UI / logcat / 永続ログファイルの検証は CI とは別であり、未実施。
 - PR #7 は closed / merged。今後は main の最新 CI と実機検証結果をこの文書に追記する。
+
+
+## Platform abstraction migration progress (2026-11-20)
+
+- [x] Stage 0 initial dependency inventory documented in `docs/PLATFORM_AUDIT.md` (source-level, non-exhaustive).
+- [ ] Stage 1 contracts/interface design.
+- [ ] Stage 2 Desktop/Mobile family runtime.
+- [ ] Stage 3 centralized adapter selection and capabilities.
+- [ ] Subsequent migrations: logs; DB/storage/settings; cache/scheduler; networking/PKV; permissions/files/backup/clipboard; UI lifecycle; final audit and CI.
+- Target architecture and migration invariants: common UI/domain -> common foundation -> Desktop/Mobile family runtime -> OS adapters. Do not claim OS-specific execution or device tests without actual verification.
