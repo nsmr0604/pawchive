@@ -2050,3 +2050,30 @@ textarea:focus {
 .setting-subsection .section-label {
   margin-bottom: 12px;
 }
+
+
+/* Prevent mobile viewport drift caused by accidental page-level horizontal overflow. */
+@media (max-width: 680px) {
+  html, body, #root {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+  .app, .app-main-wrapper, .content, .page {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .content > *, .page > *, .section, .settings-section,
+  .setting-item, .setting-text, .top-bar, .top-bar-brand, .top-bar-actions {
+    min-width: 0;
+    max-width: 100%;
+  }
+  img, video, iframe, canvas, svg {
+    max-width: 100%;
+  }
+  /* Keep horizontal scrolling inside intended controls, not the entire app. */
+  pre, code, .post-embed, .settings-nav, .tag-chips, .revision-files {
+    max-width: 100%;
+  }
+}
