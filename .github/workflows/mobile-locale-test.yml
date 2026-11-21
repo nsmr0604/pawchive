@@ -1,0 +1,99 @@
+name: Mobile locale integration test
+
+on:
+  push:
+    branches: [test/mobile-locale]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-locale-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VITE_DEBUG_DIAG: "1"
+  VITE_BUILD_COMMIT: ${{ github.sha }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: android
+            target: aarch64-linux-android
+            suffix: apk
+          - os: macos-15
+            platform: ios
+            target: aarch64-apple-ios
+            suffix: ipa
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v4
+        if: matrix.platform == 'android'
+      - name: Prepare Android SDK
+        if: matrix.platform == 'android'
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "platforms;android-36" "build-tools;35.0.0" "ndk;27.2.12479018"
+          echo "NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - name: Prepare Xcode
+        if: matrix.platform == 'ios'
+        run: |
+          xcodebuild -version
+          command -v xcodegen || brew install xcodegen
+      - name: Install dependencies and give test builds a separate app ID
+        run: |
+          npm ci
+          node --input-type=module <<'JS'
+          import fs from "node:fs"
+          const path = "src-tauri/tauri.conf.json"
+          const config = JSON.parse(fs.readFileSync(path, "utf8"))
+          config.identifier = "com.nsmr0604.pawkemoviewer.localetest"
+          fs.writeFileSync(path, JSON.stringify(config, null, 2) + "\n")
+          JS
+      - name: Build Android APK
+        if: matrix.platform == 'android'
+        run: |
+          npx tauri android init --ci
+          npx tauri android build --apk --target aarch64 --features debug-diag
+          mkdir -p artifacts
+          apk=$(find src-tauri/gen/android/app/build/outputs/apk -type f -name '*.apk' -print -quit)
+          test -n "$apk"
+          tools="$ANDROID_HOME/build-tools/35.0.0"
+          "$tools/zipalign" -f 4 "$apk" "$RUNNER_TEMP/locale-aligned.apk"
+          "$tools/apksigner" sign --ks src-tauri/android-debug.keystore --ks-pass pass:android \
+            --key-pass pass:android --ks-key-alias androiddebugkey \
+            --out artifacts/PawKemoViewer-Locale-Test-arm64.apk "$RUNNER_TEMP/locale-aligned.apk"
+          "$tools/apksigner" verify artifacts/PawKemoViewer-Locale-Test-arm64.apk
+      - name: Build unsigned iOS IPA
+        if: matrix.platform == 'ios'
+        run: |
+          npx tauri ios init
+          npx tauri ios build --no-sign --features debug-diag
+          mkdir -p artifacts
+          ipa=$(find src-tauri/gen/apple/build -type f -name '*.ipa' -print -quit)
+          test -n "$ipa"
+          unzip -t "$ipa"
+          cp "$ipa" artifacts/PawKemoViewer-Locale-Test-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PawKemoViewer-Locale-Test-${{ matrix.platform }}
+          path: artifacts/*.${{ matrix.suffix }}
+          if-no-files-found: error
