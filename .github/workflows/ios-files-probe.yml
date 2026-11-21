@@ -1,0 +1,29 @@
+name: iOS Files Probe
+
+on:
+  push:
+    branches:
+      - test/ios-files-probe
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build unsigned iPhone IPA
+        env:
+          PROBE_OUTPUT: ${{ runner.temp }}/ios-files-probe
+        run: |
+          xcodebuild -version
+          bash docs/architecture/prototypes/m5/build-ios-probe.sh
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PawKemoViewer-Files-Probe-unsigned
+          path: ${{ runner.temp }}/ios-files-probe/PawKemoViewer-Files-Probe-unsigned.ipa
+          if-no-files-found: error
